@@ -1,7 +1,7 @@
 ---
 title: "HW7"
-author: "Vicki Hertzberg"
-date: "3/29/2017"
+author: "Valerie"
+date: "4/5/2017"
 output: html_document
 ---
 
@@ -25,3 +25,147 @@ For each of the model types (null model, logistic regression, decision tree, ran
 
 2. Repeat problem 1 except now you are to use the quantitative variable called SleepHrsNight. The model types are as follows: null model, multiple regression, regression tree, random forest.
 
+Link to repository:[https://github.com/valerie-mac/Lesson11.git]
+```{r}
+#Loading packages
+library(tidyverse)
+library(class)
+library(rpart)
+library(NHANES)
+library(RColorBrewer)
+library(plot3D)
+library(parallel)
+library(randomForestSRC)
+library(ggRandomForests)
+library(mosaic)
+library(dplyr)
+```
+
+```{r}
+# Create the "people"" dataset from NHANES 
+people <- NHANES %>% dplyr::select(Gender, Age, Marijuana, BMI, SexNumPartnLife, SleepTrouble) %>% na.omit(people)
+```
+
+
+```{r}
+glimpse(people)
+```
+
+
+```{r}
+# Convert factors to numeric
+people$Gender <- as.numeric(people$Gender)
+people$Age <- as.numeric(people$Age)
+people$Marijuana <- as.numeric(people$Marijuana)
+people$BMI <- as.numeric(people$BMI)
+people$SexNumPartnLife <- as.numeric(people$SexNumPartnLife)
+people$SleepTrouble <- as.numeric(people$SleepTrouble)
+
+people <- na.omit(people)
+```
+
+
+```{r}
+# Apply knn procedure to predict SleepTrouble
+
+# Let's try different values of k to see how that affects performance
+knn.1 <- knn(train = people, test = people, cl = (people$SleepTrouble), k = 1)
+knn.3 <- knn(train = people, test = people, cl = people$SleepTrouble, k = 3)
+knn.5 <- knn(train = people, test = people, cl = people$SleepTrouble, k = 5)
+knn.20 <- knn(train = people, test = people, cl = people$SleepTrouble, k = 20)
+
+#knn.1
+
+```
+Now let's see how well it classifies
+
+```{r}
+
+# Calculate the percent predicted correctly
+
+100*sum(people$SleepTrouble == knn.1)/length(knn.1)
+100*sum(people$SleepTrouble == knn.3)/length(knn.3)
+100*sum(people$SleepTrouble == knn.5)/length(knn.5)
+100*sum(people$SleepTrouble == knn.20)/length(knn.20)
+
+```
+
+```{r}
+# Another way to look at success rate against increasing k
+
+table(knn.1, people$SleepTrouble)
+table(knn.3, people$SleepTrouble)
+table(knn.5, people$SleepTrouble)
+table(knn.20, people$SleepTrouble)
+```
+
+```{r}
+
+# Create the grid
+
+ages <- range(~ Age, data = people)
+genders <- range(~ Gender, data = people)
+marijuanas <- range(~Marijuana, data= people)
+sexnumpartnlifes <- range(~SexNumPartnLife, data=people)
+bmis <- range (~BMI, data=people)
+res <- 100
+fake_grid <- expand.grid(
+  Age = seq(from = ages[1], to = ages[2], length.out = res),
+  Gender = seq(from = genders[1], to = genders[2], length.out = res))
+  Marijuana = seq(from = marijuanas[1], to = marijuanas[2], length.out = res)
+  BMI= seq(from = bmis[1], to = bmis[2], length.out = res)
+  SexNumPartnLife = seq(from = sexnumpartnlifes[1], to = sexnumpartnlifes[2], length.out = res)
+#Get the overall proportion, p, of people with sleep trouble
+```
+```{r}
+p <- sum(people$SleepTrouble == 1)/length(people$SleepTrouble)
+```
+```{r}
+# Null model prediction
+
+pred_null <- rep(p, nrow(fake_grid))
+```
+```{r}
+# Reinitializing people back to orginal coding with Sleep Trouble as Yes and No
+people <- NHANES %>% 
+  dplyr::select(Age, Gender, Marijuana, BMI, SexNumPartnLife, SleepTrouble) %>% 
+  na.omit(people)
+
+form <- as.formula("SleepTrouble ~ Age + Gender + BMI + Marijuana + SexNumPartnLife")
+```
+```{r}
+# Evaluate each model on each grid point
+# For the decision tree
+
+dmod_tree <- rpart(form, data = people, 
+                   control = rpart.control(cp = 0.005, minbucket = 30))
+```
+# For the forest
+```{r}
+set.seed(10000)
+#dmod_forest <- rfsrc(form, data = people, 
+#                     ntree = 201, mtry = 3)
+# try with randomForest instead of randomForestSRC package
+library(randomForest)
+```
+
+```{r}
+dmod_forest <- randomForest(form, data = people, 
+                     ntree = 201, mtry = 2)
+```
+This is where I stopped. I had gone past this previously, commenting out the non-working sections, ut had to start over because the code was too hairy. This is just where I am on this attempt.
+
+```{r}
+#Generating predictions for tree and forest
+#pred_tree <- predict(dmod_tree, newdata = fake_grid)[, 1]
+#pred_forest <- predict(dmod_forest, newdata = fake_grid, 
+#                       type = "prob")[, "Yes"]
+```
+
+```{r}
+# K-nearest neighbor prediction
+#pred_knn <- people %>%
+  #select(Age, Gender, BMI, Marijuana, SexNumPartnLife) %>%
+  #knn(test=select(fake_grid, Age, Gender, BMI, Marijuana, SexNumPartnLife), cl = people$SleepTrouble, k=5) 
+
+```
